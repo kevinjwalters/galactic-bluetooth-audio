@@ -27,9 +27,11 @@ Use button A to switch effect.
 For Galactic Unicorn:
 
 ```bash
-mkdir build.cosmic
-cd build.cosmic
+mkdir build.galactic
+cd build.galactic
 cmake .. -DPICO_SDK_PATH=${PICO_SDK_PATH} -DPICO_EXTRAS_PATH=${PICO_EXTRAS_PATH} -DPICO_BOARD=pico_w -DUNICORN_MODEL=galactic -DCMAKE_BUILD_TYPE=Release
+make
+ls *.uf2
 ```
 
 For Cosmic Unicorn:
@@ -38,4 +40,6 @@ For Cosmic Unicorn:
 mkdir build.cosmic
 cd build.cosmic
 cmake .. -DPICO_SDK_PATH=${PICO_SDK_PATH} -DPICO_EXTRAS_PATH=${PICO_EXTRAS_PATH} -DPICO_BOARD=pico_w -DUNICORN_MODEL=cosmic -DCMAKE_BUILD_TYPE=Release
+make
+ls *.uf2
 ```

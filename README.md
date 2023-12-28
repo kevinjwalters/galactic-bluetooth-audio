@@ -1,12 +1,12 @@
-# Blunicorn
+# Unicorn Audio Display
 
-Blunicorn is a Bluetooth A2DP Speaker Firmware for the Raspberry Pi Pico W-powered Galactic Unicorn and Cosmic Unicorn from Pimoroni.
+Unicorn Audio Display is firmware for the Raspberry Pi Pico W-powered Galactic Unicorn and Cosmic Unicorn from Pimoroni based on Pimoroni's Blunicorn firmware. It acts as a Bluetooth A2DP Speaker or reads the analogue signal on GP27 for use with microphone modules.
 
 Play music to your display, and bask in the warm, LED glow of real-time visualisation effects.
 
 ## Installing
 
-You should grab the latest release from https://github.com/Gadgetoid/galactic-bluetooth-audio/releases/latest
+You should grab the latest release from https://github.com/kevinjwalters/unicorn-audio-display/releases/latest
 
 Make sure to grab the right package for your board.
 
@@ -20,7 +20,7 @@ Extract the firmware (.uf2 file) and drag it over to the `RPI-RP2` drive.
 
 Fire up Bluetooth on your phone or PC, you should see a new "Cosmic Unicorn" or "Galactic Unicorn" device. Connect and play music to see pretty, pretty colours!
 
-Use the A and B buttons to switch effects (more coming soon.)
+Use button A to switch effect.
 
 ## Building
 
@@ -29,7 +29,7 @@ For Galactic Unicorn:
 ```bash
 mkdir build.cosmic
 cd build.cosmic
-cmake .. -DPICO_SDK_PATH=../../pico-sdk -DPICO_EXTRAS_PATH=../../pico-extras -DPICO_BOARD=pico_w -DDISPLAY_PATH=display/galactic/galactic_unicorn.cmake -DCMAKE_BUILD_TYPE=Release
+cmake .. -DPICO_SDK_PATH=${PICO_SDK_PATH} -DPICO_EXTRAS_PATH=${PICO_EXTRAS_PATH} -DPICO_BOARD=pico_w -DUNICORN_MODEL=galactic -DCMAKE_BUILD_TYPE=Release
 ```
 
 For Cosmic Unicorn:
@@ -37,5 +37,5 @@ For Cosmic Unicorn:
 ```bash
 mkdir build.cosmic
 cd build.cosmic
-cmake .. -DPICO_SDK_PATH=../../pico-sdk -DPICO_EXTRAS_PATH=../../pico-extras -DPICO_BOARD=pico_w -DDISPLAY_PATH=display/cosmic/cosmic_unicorn.cmake -DCMAKE_BUILD_TYPE=Release
+cmake .. -DPICO_SDK_PATH=${PICO_SDK_PATH} -DPICO_EXTRAS_PATH=${PICO_EXTRAS_PATH} -DPICO_BOARD=pico_w -DUNICORN_MODEL=cosmic -DCMAKE_BUILD_TYPE=Release
 ```

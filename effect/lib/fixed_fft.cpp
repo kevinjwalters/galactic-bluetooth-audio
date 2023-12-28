@@ -1,11 +1,15 @@
 /**
- * Hunter Adams (vha3@cornell.edu)
- * Reproduced and modified with explicit permission
- * 
- * Original code in action:
- * https://www.youtube.com/watch?v=8aibPy4yzCk
+ * Copyright (c) 2023 Pimoroni Ltd <phil@pimoroni.com>
+ * Copyright (c) 2023 V. Hunter Adams <vha3@cornell.edu>
+ * Copyright (c) 2023 Kevin J. Walters
  *
+ * SPDX-License-Identifier: MIT
+ *
+ * Reproduced and modified with explicit permission
+ *
+ * Original code in action: https://www.youtube.com/watch?v=8aibPy4yzCk
  */
+
 #include "fixed_fft.hpp"
 #include <algorithm>
 
@@ -24,12 +28,17 @@ int FIX_FFT::get_scaled(unsigned int i) {
     return fix15_to_int(multiply_fix15(fr[i], loudness_adjust[i]));
 }
 
-int FIX_FFT::get_scaled_fix15(unsigned int i) {
-    return fix15_to_int(multiply_fix15(fr[i], loudness_adjust[i]));
+fix15 FIX_FFT::get_scaled_as_fix15(unsigned int i) {
+    return multiply_fix15(fr[i], loudness_adjust[i]);
 }
 
-int FIX_FFT::get_scaled_as_fix15(unsigned int i) {
-    return multiply_fix15(fr[i], loudness_adjust[i]);
+
+void FIX_FFT::setSampleRate(uint32_t rate) {
+    if (sample_rate != rate) {
+        sample_rate = rate;
+        sample_rate_f = float(rate);
+        set_scale(scale);
+    }
 }
 
 void FIX_FFT::init() {
@@ -37,28 +46,96 @@ void FIX_FFT::init() {
     for (auto ii = 0u; ii < SAMPLE_COUNT; ii++) {
         // Full sine wave with period NUM_SAMPLES
         // Wolfram Alpha: Plot[(sin(2 * pi * (x / 1.0))), {x, 0, 1}]
-        sine_table[ii] = float_to_fix15(0.5f * sin((M_PI * 2.0f) * ((float) ii) / (float)SAMPLE_COUNT));
+        sine_table[ii] = float_to_fix15(0.5f * sinf((M_PI * 2.0f) * ((float) ii) / (float)SAMPLE_COUNT));
 
         // This is a crude approximation of a Lanczos window.
-        // Wolfram Alpha Comparison: Plot[0.5 * (1.0 - cos(2 * pi * (x / 1.0))), {x, 0, 1}], Plot[LanczosWindow[x - 0.5], {x, 0, 1}]
-        filter_window[ii] = float_to_fix15(0.5f * (1.0f - cos((M_PI * 2.0f) * ((float) ii) / ((float)SAMPLE_COUNT))));
+        // Wolfram Alpha Comparison: Plot[0.5 * (1.0 - cosf(2 * pi * (x / 1.0))), {x, 0, 1}], Plot[LanczosWindow[x - 0.5], {x, 0, 1}]
+        filter_window[ii] = float_to_fix15(0.5f * (1.0f - cosf((M_PI * 2.0f) * ((float) ii) / ((float)SAMPLE_COUNT))));
     }
 }
 
-void FIX_FFT::set_scale(float scale) {
-    for (int i = 0; i < SAMPLE_COUNT; ++i) {
-        int freq = (sample_rate * 2) * (i) / SAMPLE_COUNT;
+void FIX_FFT::next_scale(void) {
+    (void)contour.next();
+    set_scale(scale);
+}
+
+void FIX_FFT::set_scale(float new_scale) {
+    scale = new_scale;
+
+    // Set DC offset
+    loudness_adjust[0] = float_to_fix15(scale / float(SAMPLE_COUNT));
+
+    const LoudnessLookup *lookup = contour.lookup();
+    // Only set 1 to N/2+1 buckets, rest are mirror image for a real world
+    float multiplier = 2.0f * scale / float(SAMPLE_COUNT);
+    float freq_step_f = sample_rate_f / SAMPLE_COUNT;
+    float freq_f = freq_step_f;
+    for (int i = 1; i < SAMPLE_COUNT / 2 + 1; ++i) {
+        int freq = int(roundf(freq_f));
         int j = 0;
-        while (loudness_lookup[j+1].freq < freq) {
+        while (lookup[j+1].freq < freq) {
             ++j;
         }
-        float t = float(freq - loudness_lookup[j].freq) / float(loudness_lookup[j+1].freq - loudness_lookup[j].freq);
-        loudness_adjust[i] = float_to_fix15(scale * (t * loudness_lookup[j+1].multiplier + (1.f - t) * loudness_lookup[j].multiplier));
+        float t = float(freq - lookup[j].freq) / float(lookup[j+1].freq - lookup[j].freq);
+        loudness_adjust[i] = float_to_fix15(multiplier * (t * lookup[j+1].multiplier +
+                                                          (1.0f - t) * lookup[j].multiplier));
+        freq_f += freq_step_f;
     }
 }
 
-void FIX_FFT::update() {
-    float max_freq = 0;
+
+bool FIX_FFT::add_samples(uint16_t *buffer, size_t count, uint16_t channels) {
+    size_t copy_count = std::min(count, sizeof(sample_array) / sizeof(sample_array[0]) - sample_idx);
+    size_t b_idx = 0;
+    size_t s_idx = sample_idx;
+    size_t end_exidx = sample_idx + copy_count;
+    int32_t offset = 32768 >> 4;    // TODO work out clean way to do shift
+
+    if (channels == 1) {
+        while (s_idx < end_exidx) {
+            sample_array[s_idx++] = int16_t(buffer[b_idx++] - offset) << 4;  // TODO - work out clean way to do shift
+        }
+    } else if (channels == 2) {
+        while (s_idx < end_exidx) {
+            int16_t mono_sample = (buffer[b_idx++] + buffer[b_idx++]) >> 1;
+            sample_array[s_idx++] = int16_t(mono_sample - offset) << 4;
+        }
+    }
+    sample_idx = end_exidx;
+
+    // indicate whether sample_array is full
+    return end_exidx == sizeof(sample_array) / sizeof(sample_array[0]);
+}
+
+
+bool FIX_FFT::add_samples(int16_t *buffer, size_t count, uint16_t channels) {
+    size_t copy_count = std::min(count, sizeof(sample_array) / sizeof(sample_array[0]) - sample_idx);
+    size_t b_idx = 0;
+    size_t s_idx = sample_idx;
+    size_t end_exidx = sample_idx + copy_count; 
+    if (channels == 1) {
+        memcpy(sample_array, &buffer[b_idx], copy_count * sizeof(int16_t));
+    } else if (channels == 2) {
+        while (s_idx < end_exidx) {
+            int16_t mono_sample = (buffer[b_idx++] + buffer[b_idx++]) >> 1;
+            sample_array[s_idx++] = mono_sample;
+        }
+    }
+    sample_idx = end_exidx;
+
+    // Original weird code
+    // int16_t* fft_array = &sample_array[SAMPLES_PER_AUDIO_BUFFER * (BUFFERS_PER_FFT_SAMPLE - 1)];
+    // memmove(sample_array, &sample_array[SAMPLES_PER_AUDIO_BUFFER], (BUFFERS_PER_FFT_SAMPLE - 1) * sizeof(uint16_t));
+    // for (auto i = 0u; i < SAMPLES_PER_AUDIO_BUFFER; i++) {
+    //     fft_array[i] = buffer[i];
+    // }
+
+    // indicate whether sample_array is full
+    return end_exidx == sizeof(sample_array) / sizeof(sample_array[0]);
+}
+
+void FIX_FFT::process() {
+    float max_freq = 0.0f;
 
     // Copy/window elements into a fixed-point array
     for (auto i = 0u; i < SAMPLE_COUNT; i++) {
@@ -71,23 +148,25 @@ void FIX_FFT::update() {
 
     // Find the magnitudes
     for (auto i = 0u; i < (SAMPLE_COUNT / 2u); i++) {
-        // get the approx magnitude
-        fr[i] = abs(fr[i]); //>>9
-        fi[i] = abs(fi[i]);
-        // reuse fr to hold magnitude
-        fr[i] = std::max(fr[i], fi[i]) + 
-                multiply_fix15(std::min(fr[i], fi[i]), float_to_fix15(0.4f)); 
+        // get the approx magnitude using approximated sqrt()
+        // and store in fr
+        fix15 abs_re = abs(fr[i]);
+        fix15 abs_im = abs(fi[i]);
+        fr[i] = std::max(abs_re, abs_im) + 
+                multiply_fix15(std::min(abs_re, abs_im), float_to_fix15(0.4f)); 
 
-        // Keep track of maximum
+        // Keep track of maximum frequency
         if (fr[i] > max_freq && i >= 5u) {
-            max_freq = FIX_FFT::fr[i];
+            max_freq = fr[i];
             max_freq_dex = i;
         }
     }
+
+    sample_idx = 0;  // reset index as data has been processed
 }
 
 float FIX_FFT::max_frequency() {
-    return max_freq_dex * (sample_rate / SAMPLE_COUNT);
+    return max_freq_dex * (sample_rate_f / SAMPLE_COUNT);
 }
 
 void FIX_FFT::FFT() {
@@ -104,7 +183,7 @@ void FIX_FFT::FFT() {
         if (mr <= m) continue;
         // swap the bit-reveresed indices
         std::swap(fr[m], fr[mr]);
-        std::swap(fi[m], fi[mr]);
+        // std::swap(fi[m], fi[mr]); // For our special case this isn't needed as all zero
     }
 
     // Danielson-Lanczos

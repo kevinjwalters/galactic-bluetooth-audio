@@ -1,4 +1,13 @@
+/**
+ * Copyright (c) 2023 Pimoroni Ltd <phil@pimoroni.com>
+ * Copyright (c) 2023 Kevin J. Walters
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+
 #pragma once
+
 #include <cstdint>
 
 struct RGB {

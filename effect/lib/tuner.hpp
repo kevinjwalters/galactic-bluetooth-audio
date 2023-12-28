@@ -1,0 +1,79 @@
+/**
+ * Copyright (c) 2023 Kevin J. Walters
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#pragma once
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <cstring>
+#include <cstdint>
+#include <array>
+
+#include "pico/stdlib.h"
+
+#include "bitstream.hpp"
+
+// This MUST BE a multiple of the buffer sizes from Bluetooth and
+// DMA ADC
+static constexpr unsigned int SAMPLE_COUNT_TUNER = 4096 + 2048;  // = 6144
+// static constexpr unsigned int SAMPLE_COUNT_TUNER = 4096; // 54380 us
+// 6144 @ 96k works for C1 (32.70, square wave synth), B0 does not work
+// static constexpr unsigned int SAMPLE_COUNT_TUNER = 8192; // 216580 us 
+
+// The SparkFun Sound Detector wired up to GP27 is strangely noisy
+// 500 = +- 1.5%  1000 = +/- 3.1%  2000 = +/- 6.1%
+static int16_t zc_noise_magn = 1000;
+
+
+class Tuner {
+  private:
+    // TODO type for samples somewhere? needed? not the same thing as raw adc sample
+    std::array<int16_t, SAMPLE_COUNT_TUNER> sample_array;
+    std::array<size_t, 5> period_results;
+    size_t result_idx;
+    size_t sample_idx;
+    uint32_t sample_rate;
+    float sample_rate_f;
+    Bitstream<> bitstream;
+    float min_period;
+    float max_period;
+
+    float calculateFrequency(size_t latest_period);
+
+  public:
+    constexpr static float MIN_FREQUENCY = 32.0f;  // just below C1
+    constexpr static float MAX_FREQUENCY = 520.0f;  // just below C5
+
+    constexpr static float A4_REF_FREQUENCY = 440.0f;
+
+    // Lower and upper thresholds which both need to be met
+    // for correlation to be considered to be significant
+    // 26% and 42% of half the buffer size
+    constexpr static size_t COUNT_CORR_THR_MIN = SAMPLE_COUNT_TUNER / 2 * 26 / 100;
+    constexpr static size_t COUNT_CORR_THR_MAX = SAMPLE_COUNT_TUNER / 2 * 42 / 100;
+    constexpr static float COUNT_CORR_SUB_THR_FRAC = 0.15f;
+
+    float frequency;
+
+    Tuner() : period_results(),
+        result_idx(0),
+        sample_idx(0),
+        sample_rate(0),
+        sample_rate_f(0.0f),
+        bitstream(SAMPLE_COUNT_TUNER),
+        min_period(0.0f),
+        max_period(0.0f),
+        frequency(0.0f) {
+        // sample_array does not need to be initialised
+        period_results = {};
+    };
+
+    bool add_samples(int16_t *buffer, size_t count, uint16_t channels);
+    bool add_samples(uint16_t *buffer, size_t count, uint16_t channels);
+    void process();
+    void setSampleRate(uint32_t rate);
+};

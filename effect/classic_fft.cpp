@@ -1,16 +1,17 @@
-#include "lib/rgb.hpp"
-#include "effect.hpp"
+/**
+ * Copyright (c) 2023 Pimoroni Ltd <phil@pimoroni.com>
+ * Copyright (c) 2023 Kevin J. Walters
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
-void ClassicFFT::update(int16_t *buffer16, size_t sample_count) {
-    int16_t* fft_array = &fft.sample_array[SAMPLES_PER_AUDIO_BUFFER * (BUFFERS_PER_FFT_SAMPLE - 1)];
-    memmove(fft.sample_array, &fft.sample_array[SAMPLES_PER_AUDIO_BUFFER], (BUFFERS_PER_FFT_SAMPLE - 1) * sizeof(uint16_t));
+#include "effect/effect.hpp"
 
-    for (auto i = 0u; i < SAMPLES_PER_AUDIO_BUFFER; i++) {
-        fft_array[i] = buffer16[i];
-    }
+#include "uad/debug.hpp"
+#include "effect/lib/rgb.hpp"
 
-    fft.update();
 
+void EffectClassicFFT::updateDisplay(void) {
     for (auto i = 0u; i < display.WIDTH; i++) {
         fix15 sample = std::min(float_to_fix15(max_sample_from_fft), fft.get_scaled_as_fix15(i + FFT_SKIP_BINS));
         uint8_t maxy = 0;
@@ -66,12 +67,18 @@ void ClassicFFT::update(int16_t *buffer16, size_t sample_count) {
     history_idx = (history_idx + 1) % HISTORY_LEN;
 }
 
-void ClassicFFT::init(uint32_t sample_frequency) {
-    printf("ClassicFFT: %ix%i\n", display.WIDTH, display.HEIGHT);
+
+void EffectClassicFFT::start(void) {
+    fft.set_scale(float(display.HEIGHT) * 0.318f * 1000.f);
+}
+
+
+void EffectClassicFFT::init(void) {
+    if (debug >= 1) {
+        printf("EffectClassicFFT: %ix%i\n", display.WIDTH, display.HEIGHT);
+    }
 
     history_idx = 0;
-
-    fft.set_scale(display.HEIGHT * .318f);
 
     for(auto i = 0u; i < display.HEIGHT; i++) {
         int n = floor(i / 4) * 4;
@@ -80,7 +87,7 @@ void ClassicFFT::init(uint32_t sample_frequency) {
         palette[i] = RGB::from_hsv(h, 1.0f, 1.0f);
     }
 
-    max_sample_from_fft = 4000.f + 130.f * display.HEIGHT;
+    max_sample_from_fft = 8000.f + 130.f * display.HEIGHT;
     lower_threshold = 270 - 2 * display.HEIGHT;
 #ifdef SCALE_LOGARITHMIC
     multiple = float_to_fix15(pow(max_sample_from_fft / lower_threshold, -1.f / (display.HEIGHT - 1)));

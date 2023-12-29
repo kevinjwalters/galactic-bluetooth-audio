@@ -28,6 +28,8 @@ int main(int argc, char *argv[]) {
     //set_sys_clock_khz(200000, true);
 
     stdio_init_all();
+    printf("\n" PICO_PROGRAM_NAME " " PICO_PROGRAM_VERSION_STRING "\n");
+    printf("More information: " PICO_PROGRAM_URL "\n\n");
 
     UnicornAudioDisplay UAD;
 #ifdef AUDIO_SOURCES

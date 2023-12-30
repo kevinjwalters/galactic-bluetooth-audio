@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <array>
 #include <cstddef>
 
 #include "btstack_audio.h"
@@ -18,6 +19,8 @@
 #include "pico/time.h"
 #include "boards/pico.h"
 #include "hardware/dma.h"
+
+#include "pico_graphics.hpp"
 
 // #include "pico/multicore.h"
 // #include "pico/sync.h"
@@ -69,6 +72,7 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
     // num channels requested by application
     btstack_audio_pico_channel_count = channel_count;
 
+    printf("init_audio 1\n");
     // This is the output format for i2s and is passed to pico-extras audio_i2s_setup
     // always use stereo
     btstack_audio_pico_audio_format.format = AUDIO_BUFFER_FORMAT_PCM_S16;
@@ -88,17 +92,24 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
     config.clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE;
     config.dma_channel    = (int8_t) dma_claim_unused_channel(true);
     config.pio_sm         = 0;
+    printf("init_audio 2\n");
+    sleep_ms(100);
 
     // audio_i2s_setup claims the channel again https://github.com/raspberrypi/pico-extras/issues/48
     dma_channel_unclaim(config.dma_channel);
+    printf("init_audio 3\n");
+    sleep_ms(100);
     const audio_format_t * output_format = audio_i2s_setup(&btstack_audio_pico_audio_format, &config);
     if (!output_format) {
         panic("PicoAudio: Unable to open audio device.\n");
     }
+    printf("init_audio 4\n");
+    sleep_ms(100);
 
     bool ok = audio_i2s_connect(producer_pool);
     assert(ok);
     (void)ok;
+    printf("init_audio 5\n");
 
     return producer_pool;
 }
@@ -258,6 +269,45 @@ void AudioSourceBluetooth::init(void) {
 
     // setup i2s audio for sink
     btstack_audio_sink_set_instance(&btstack_audio_pico_sink);
+}
+
+uint32_t AudioSourceBluetooth::title(pimoroni::PicoGraphics_PenRGB888 &graphics, int d_width, int d_height) {
+    static const std::array bgspans{5, 7, 9, 9, 9, 9, 9, 9, 9, 7, 5};
+    const int32_t logo_width = 9;
+    const int32_t logo_height = 11;
+    int32_t xoff = (d_width - logo_width) / 2;
+    int32_t yoff = (d_height - logo_height) / 2;
+
+    graphics.set_pen(0u, 0u, 0u);
+    graphics.clear();
+
+    // draw blue oval
+    graphics.set_pen(12u, 12u, 40u);
+    int y = yoff;
+    for (auto span : bgspans) {
+        pimoroni::Point start(xoff + (logo_width - span) / 2 , y++);
+        graphics.set_pixel_span(start, span);
+    }
+
+    // draw rune
+    graphics.set_pen(64u, 64u, 64u);
+    int relmidxpos = logo_width / 2;
+    for (int y = 1; y < logo_height - 1; y++) {
+        pimoroni::Point p(xoff + relmidxpos, y);
+        graphics.set_pixel(p);
+    }
+    for (int idx = 0; idx < 5; idx++) {
+        pimoroni::Point p1(xoff + logo_width * 1 / 4 + idx, 3 + idx);
+        pimoroni::Point p2(xoff + logo_width * 3 / 4 - idx, 3 + idx);
+        graphics.set_pixel(p1);
+        graphics.set_pixel(p2);
+    }
+    pimoroni::Point pmt(xoff + relmidxpos + 1, 2);
+    graphics.set_pixel(pmt);
+    pimoroni::Point pmb(xoff + relmidxpos + 1, logo_height - 1 - 2); 
+    graphics.set_pixel(pmb);
+
+    return 1;  // minimum time to show the title
 }
 
 void AudioSourceBluetooth::run(void) {

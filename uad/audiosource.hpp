@@ -9,6 +9,8 @@
 
 #include <cstdint>
 
+#include "pico_graphics.hpp"
+
 
 class UnicornAudioDisplay;  // For pointers
 
@@ -27,6 +29,7 @@ class AudioSource {
     virtual ~AudioSource() {};
 
     virtual void init(void) = 0;
+    virtual uint32_t title(pimoroni::PicoGraphics_PenRGB888 &graphics, int d_width, int d_height) = 0;
     virtual void run(void) = 0;
     virtual void deinit(void) = 0;
     virtual bool okay(void) = 0;
@@ -39,6 +42,7 @@ class AudioSourceDMAADC : public AudioSource {
         collected_adc1_counter(0),
         collected_adc2_counter(0) { };
     void init(void) override;
+    uint32_t title(pimoroni::PicoGraphics_PenRGB888 &graphics, int d_width, int d_height);
     void run(void) override;
     void deinit(void) override;
     bool okay(void) override;
@@ -53,6 +57,7 @@ class AudioSourceBluetooth : public AudioSource {
   public:
     explicit AudioSourceBluetooth(UnicornAudioDisplay *uad_ptr_) : AudioSource(uad_ptr_) { };
     void init(void) override;
+    uint32_t title(pimoroni::PicoGraphics_PenRGB888 &graphics, int d_width, int d_height);
     void run(void) override;
     void deinit(void) override;
     bool okay(void) override;

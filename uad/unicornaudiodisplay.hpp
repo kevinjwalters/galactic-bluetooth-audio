@@ -14,6 +14,13 @@
 #include <vector>
 #include <functional>
 
+#include "pico.h"
+#include "hardware/address_mapped.h"
+#include "hardware/structs/pio.h"
+#include "hardware/gpio.h"
+#include "hardware/regs/dreq.h"
+#include "hardware/pio_instructions.h"
+
 #include "pico_graphics.hpp"
 #include "bitmap_fonts.hpp"
 #include "font8_data.hpp"
@@ -101,7 +108,10 @@ class UnicornAudioDisplay {
         }
         effects[current_effect]->start();
 
-        display.init();
+        // 0 is audio_rate - this disables audio (I2S/PIO/DMA/IRQ code)
+        // as I2S audio is handled in AudioSourceBluetooth
+        // and things don't work if pio0 is used
+        display.init(0, pio1);
         display.clear();
 
         graphics.set_font(uad_font_ptr);
@@ -128,7 +138,18 @@ class UnicornAudioDisplay {
         uint32_t rate = sources[current_source]->getSampleRate();
         if (rate > 0) {
             setSampleRate(rate);
-        }    
+        }
+    };
+
+    void title(void) {
+         int delay = sources[current_source]->title(graphics,
+                                                    Display::WIDTH,
+                                                    Display::HEIGHT);
+         if (delay > 0) {
+             // Only display the graphics for non zero delays
+             display.update(&graphics);
+             (void)sleep_ms_with_skip(delay, [this](void) { return button_a.pressed(); });
+         }
     };
 
     void run() { sources[current_source]->run(); };
@@ -157,7 +178,7 @@ class UnicornAudioDisplay {
 
     void checkButtons(void) {
         absolute_time_t now_t = get_absolute_time();
-   
+
         // Button A: next effect
         if (button_a.pressedSince(now_t)) {
             effects[current_effect]->stop();
@@ -172,18 +193,18 @@ class UnicornAudioDisplay {
                 // wait for button release
             }
         }
- 
+
         // Button B: pass to Effect
         if (button_b.pressedSince(now_t)) {
             effects[current_effect]->buttonB();
         }
-    
+
         // Button C: pass to Effect and currently the next FFT scale
         if (button_c.pressedSince(now_t)) {
             effects[current_effect]->buttonC(); // TODO - finish off moving scale change to effects
             fft.next_scale();  // TODO - would be better to call an effect method and let it handle this
         }
-    
+
         // Button D: shift button to change volume to scale adjustment
         if (button_d.pressed()) {
             if (button_volume_down.pressedSince(now_t)) {
@@ -200,7 +221,7 @@ class UnicornAudioDisplay {
                 }
             }
         }
-    
+
         if (button_volume_down.pressedSince(now_t) && local_volume >= 16) {
             local_volume -= 16;
         } else if (button_volume_up.pressedSince(now_t) && local_volume <= MAX_LOCAL_VOLUME - 16) {
@@ -316,7 +337,7 @@ class UnicornAudioDisplay {
             // don't check skip_func here to allow use to lift finger off button
             if (showtime_ms > 800) {
                 sleep_ms(800);
-                sleep_ms_with_skip(showtime_ms - 800, skip_func);
+                (void)sleep_ms_with_skip(showtime_ms - 800, skip_func);
             } else {
                 sleep_ms(showtime_ms);
             }

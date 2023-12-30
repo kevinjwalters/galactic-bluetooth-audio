@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_INIT_FAILED);
     }
 
+    UAD.title();
     UAD.run();  // At the moment this never returns
     UAD.deinit();
 }

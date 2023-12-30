@@ -18,6 +18,8 @@
 #include "btstack_run_loop.h"
 // See pico/btstack_run_loop_async_context.h above
 
+#include "pico_graphics.hpp"
+
 #include "uad/audiosource.hpp"
 #include "uad/display.hpp"
 #include "uad/debug.hpp"
@@ -269,6 +271,10 @@ void AudioSourceDMAADC::init(void) {
     init_adc();
     adc_dma_start();
     active = true;
+}
+
+uint32_t AudioSourceDMAADC::title(pimoroni::PicoGraphics_PenRGB888 &graphics, int d_width, int d_height) {
+    return 0;
 }
 
 void AudioSourceDMAADC::run(void) {

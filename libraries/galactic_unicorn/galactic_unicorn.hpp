@@ -1,6 +1,13 @@
 #pragma once
 
+#include "pico.h"
+#include "hardware/address_mapped.h"
+#include "hardware/structs/pio.h"
+#include "hardware/gpio.h"
+#include "hardware/regs/dreq.h"
+#include "hardware/pio_instructions.h"
 #include "hardware/pio.h"
+
 #include "pico_graphics.hpp"
 #include "common/pimoroni_common.hpp"
 #include "../pico_synth/pico_synth.hpp"
@@ -53,7 +60,7 @@ namespace pimoroni {
     static const uint32_t BCD_FRAME_BYTES = 60;
     static const uint32_t ROW_BYTES = BCD_FRAME_COUNT * BCD_FRAME_BYTES;
     static const uint32_t BITSTREAM_LENGTH = (ROW_COUNT * ROW_BYTES);
-    static const uint SYSTEM_FREQ = 22050;
+    static const uint DEFAULT_SYSTEM_FREQ = 22050;
 
   private:
     static PIO bitstream_pio;
@@ -64,6 +71,7 @@ namespace pimoroni {
     static uint audio_sm;
     static uint audio_sm_offset;
 
+    uint audio_rate = 0; 
     uint16_t brightness = 256;
     uint16_t volume = 127;
 
@@ -91,7 +99,7 @@ namespace pimoroni {
   public:
     ~GalacticUnicorn();
 
-    void init();
+    void init(uint audio_rate_ = DEFAULT_SYSTEM_FREQ, PIO = pio0);
     static inline void pio_program_init(PIO pio, uint sm, uint offset);
 
     void clear();

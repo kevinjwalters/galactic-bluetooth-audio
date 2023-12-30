@@ -69,6 +69,7 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
     // num channels requested by application
     btstack_audio_pico_channel_count = channel_count;
 
+    printf("init_audio 1\n");
     // This is the output format for i2s and is passed to pico-extras audio_i2s_setup
     // always use stereo
     btstack_audio_pico_audio_format.format = AUDIO_BUFFER_FORMAT_PCM_S16;
@@ -88,17 +89,24 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
     config.clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE;
     config.dma_channel    = (int8_t) dma_claim_unused_channel(true);
     config.pio_sm         = 0;
+    printf("init_audio 2\n");
+    sleep_ms(100);
 
     // audio_i2s_setup claims the channel again https://github.com/raspberrypi/pico-extras/issues/48
     dma_channel_unclaim(config.dma_channel);
+    printf("init_audio 3\n");
+    sleep_ms(100);
     const audio_format_t * output_format = audio_i2s_setup(&btstack_audio_pico_audio_format, &config);
     if (!output_format) {
         panic("PicoAudio: Unable to open audio device.\n");
     }
+    printf("init_audio 4\n");
+    sleep_ms(100);
 
     bool ok = audio_i2s_connect(producer_pool);
     assert(ok);
     (void)ok;
+    printf("init_audio 5\n");
 
     return producer_pool;
 }

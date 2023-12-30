@@ -105,18 +105,23 @@ target_link_libraries(${NAME2}
     hardware_dma
 )
 
-message(NOTICE "Display: ${DISPLAY_NAME}")
+# Create the Bluetooth device name with upper case first character
+string(SUBSTRING ${UNICORN_MODEL} 0 1 FIRST_LETTER)
+string(TOUPPER ${FIRST_LETTER} FIRST_LETTER)
+string(REGEX REPLACE "^.(.*)" "${FIRST_LETTER}\\1 Unicorn" BLUETOOTH_DEVICE_NAME "${UNICORN_MODEL}")
+
+message(NOTICE "Bluetooth device name: ${BLUETOOTH_DEVICE_NAME}")
 
 target_compile_definitions(${NAME1} PRIVATE
     PICO_AUDIO_I2S_DATA_PIN=9
     PICO_AUDIO_I2S_CLOCK_PIN_BASE=10
-    BLUETOOTH_DEVICE_NAME="${DISPLAY_NAME}"
+    BLUETOOTH_DEVICE_NAME="${BLUETOOTH_DEVICE_NAME}"
     AUDIO_SOURCES=AudioSourceBluetooth
 )
 target_compile_definitions(${NAME2} PRIVATE
     PICO_AUDIO_I2S_DATA_PIN=9
     PICO_AUDIO_I2S_CLOCK_PIN_BASE=10
-    BLUETOOTH_DEVICE_NAME="${DISPLAY_NAME}"
+    BLUETOOTH_DEVICE_NAME="${BLUETOOTH_DEVICE_NAME}"
     AUDIO_SOURCES=AudioSourceDMAADC
 )
 

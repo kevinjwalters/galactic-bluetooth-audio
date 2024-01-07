@@ -80,4 +80,5 @@ class Tuner {
     void process();
     void setSampleRate(uint32_t rate);
     const std::vector<int16_t>& getSamples(void) { return sample_array; };
+    int32_t findCross(bool pos_edge = true, size_t sample_mass = 20'000);
 };

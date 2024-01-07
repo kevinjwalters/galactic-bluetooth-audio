@@ -207,9 +207,6 @@ class EffectAudioscopeTuner : public EffectTuner {
     void updateDisplay(void) override;
     void start(void) override;
     void init(void) override;
-
-  private:
-    int32_t findCross(const std::vector<int16_t> &signal, bool pos_edge = true, size_t sample_mass = 20'000);
 };
 
 

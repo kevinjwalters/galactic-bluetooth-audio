@@ -13,9 +13,12 @@
 #include <string>
 #include <cstdint>
 #include <cstddef>
+#include "limits.h"
+
 
 #include "pico_graphics.hpp"
 #include "bitmap_fonts.hpp"
+#include "font6_data.hpp"
 #include "font8_data.hpp"
 
 #include "uad/display.hpp"
@@ -206,6 +209,28 @@ class EffectClassicTuner : public EffectTuner {
     void updateDisplay(void) override;
     void start(void) override;
     void init(void) override;
+};
+
+
+class EffectAudioscopeTuner : public EffectTuner {
+  public:
+    EffectAudioscopeTuner(Display& display,
+                          Tuner& tuner) : EffectTuner(display, "Audioscope", tuner),
+                                          freq_text(display, font6, 64, 64, 64) { };
+    virtual ~EffectAudioscopeTuner() { };
+
+  protected:
+    constexpr static int8_t Y_MID_POS = (Display::HEIGHT - 1) / 2;
+    constexpr static float  y_scale   = float(Display::HEIGHT) / (1 - 2 * INT16_MIN);
+
+    TunerText freq_text;
+
+    void updateDisplay(void) override;
+    void start(void) override;
+    void init(void) override;
+
+  private:
+    int32_t findCross(const std::vector<int16_t> &signal, bool pos_edge = true, size_t sample_mass = 20'000);
 };
 
 

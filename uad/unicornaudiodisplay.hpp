@@ -55,6 +55,7 @@ class UnicornAudioDisplay {
     EffectRainbowFFT effect_rainbow_fft;
     EffectClassicFFT effect_classic_fft;
     EffectClassicTuner effect_classic_tuner;
+    EffectAudioscopeTuner effect_audioscope_tuner;
     int current_effect;
     UnicornButton button_a, button_b, button_c, button_d;
     UnicornButton button_volume_down, button_volume_up;
@@ -81,6 +82,7 @@ class UnicornAudioDisplay {
         effect_rainbow_fft(display, fft),
         effect_classic_fft(display, fft),
         effect_classic_tuner(display, tuner),
+        effect_audioscope_tuner(display, tuner),
         current_effect(0),
         button_a(Display::SWITCH_A),
         button_b(Display::SWITCH_B),
@@ -101,6 +103,7 @@ class UnicornAudioDisplay {
         effects.push_back(&effect_rainbow_fft);
         effects.push_back(&effect_classic_fft);
         effects.push_back(&effect_classic_tuner);
+        effects.push_back(&effect_audioscope_tuner);
         effect_update_time = {};  // init to 0s
 
         for (auto &effect : effects) {

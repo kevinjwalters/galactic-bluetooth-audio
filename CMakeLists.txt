@@ -25,6 +25,7 @@ include(effect/spectrogram_fft.cmake)
 include(effect/rainbow_fft.cmake)
 include(effect/classic_fft.cmake)
 include(effect/classic_tuner.cmake)
+include(effect/effect_audioscope_tuner.cmake)
 include(effect/console_recorder.cmake)
 
 include(libraries/bitmap_fonts/bitmap_fonts.cmake)
@@ -56,10 +57,10 @@ add_executable(${NAME2}
 )
 
 pico_set_program_name(${NAME1} "unicornaudiodisplay")
-pico_set_program_version(${NAME1} "1.4.0")
+pico_set_program_version(${NAME1} "1.5.0")
 pico_set_program_url(${NAME1} "https://www.instructables.com/member/kevinjwalters/")
 pico_set_program_name(${NAME2} "unicornaudiodisplay")
-pico_set_program_version(${NAME2} "1.4.0")
+pico_set_program_version(${NAME2} "1.5.0")
 pico_set_program_url(${NAME2} "https://www.instructables.com/member/kevinjwalters/")
 
 target_include_directories(${NAME1} PRIVATE

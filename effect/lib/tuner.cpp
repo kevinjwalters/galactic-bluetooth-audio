@@ -91,7 +91,8 @@ void Tuner::process() {
     uint32_t max_count = 0;
     uint32_t min_count = UINT32_MAX;
     size_t est_index = 0;
-    std::array<uint32_t,SAMPLE_COUNT_TUNER / 2> corr{};  // note {} here initializes as 0s
+    // std::array<uint32_t,SAMPLE_COUNT_TUNER / 2> corr{};  // note {} here initializes as 0s
+    std::vector<uint32_t> corr(SAMPLE_COUNT_TUNER / 2, 0);
   
     bitstream.auto_correlate(size_t(min_period),
         [&corr, &max_count, &min_count, &est_index](auto pos, auto count)
@@ -157,6 +158,8 @@ float Tuner::calculateFrequency(size_t latest_int_period) {
     // Store value
     period_results[result_idx++] = latest_int_period;
     if (result_idx >= period_results.size()) { result_idx = 0; };
+
+    latest_frequency = latest_int_period != 0 ? sample_rate / float(latest_int_period) : 0.0f;
 
     // Calculate arithemetic mean of non-zero values excluding
     // min&max outliers (for more outliers a sort would be needed)

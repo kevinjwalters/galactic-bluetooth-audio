@@ -96,63 +96,27 @@ class EffectTuner : public Effect {
 };
 
 
-
-/*
-// This does not work I think because rectangle is called but isn't virtual
-class Tuner_PicoGraphics_PenRGB888 : public pimoroni::PicoGraphics_PenRGB888 {
+class EffectText {
   public:
-    Tuner_PicoGraphics_PenRGB888(uint16_t width,
-                                 uint16_t height,
-                                 void *frame_buffer,
-                                 Display &display,
-                                 uint8_t text_r,
-                                 uint8_t text_g,
-                                 uint8_t text_b) :
-        PicoGraphics_PenRGB888(width, height, frame_buffer),
-        display(display),
-        text_origin(0, 0),
-        text_r(text_r),
-        text_g(text_g),
-        text_b(text_b) { };
-    void set_pixel(const pimoroni::Point &p) override {
-        display.set_pixel(p.x, p.y, text_r, text_g, text_b);
-    };
-    void rectangle(const pimoroni::Rect &r) {
-        display.set_pixel(r.x, r.y, text_r, text_g, text_b);
-        // TODO rest of pixels
-        // but it doesn't work so waste of time
-    };
-    void text(const std::string &msg) {
-        PicoGraphics_PenRGB888::set_pen(text_r, text_g, text_b);
-        PicoGraphics_PenRGB888::text(msg, text_origin, -1, 1.0f);
-    };
-
-  private:
-    Display &display;
-    pimoroni::Point text_origin;
-    uint8_t text_r, text_g, text_b;
-};
-*/
-
-
-
-class TunerText {
-  public:
-    TunerText(Display &display,
-              const bitmap::font_t &bitmap_font,
-              uint8_t text_r,
-              uint8_t text_g,
-              uint8_t text_b,
-              uint8_t textbg_r = 0,
-              uint8_t textbg_g = 0,
-              uint8_t textbg_b = 0) :
+    EffectText(Display &display,
+               const bitmap::font_t &bitmap_font,
+               uint8_t text_r,
+               uint8_t text_g,
+               uint8_t text_b,
+               int32_t text_pos_x = 0,
+               int32_t text_pos_y = 0 ,
+               char justification = 'l',
+               uint8_t textbg_r = 0,
+               uint8_t textbg_g = 0,
+               uint8_t textbg_b = 0) :
         display(display),
         bitmap_font(bitmap_font),
-        text_pos_x(0),
-        text_pos_y(0),
+        text_pos_x(text_pos_x),
+        text_pos_y(text_pos_y),
         text_r(text_r),
         text_g(text_g),
         text_b(text_b),
+        justification(justification),
         textbg_r(textbg_r),
         textbg_g(textbg_g),
         textbg_b(textbg_b) { };
@@ -169,22 +133,33 @@ class TunerText {
         // PicoGraphics_PenRGB888::text(msg, text_origin, -1, 1.0f);
         size_t string_len = fixed_len > 0 ? fixed_len : text.length();
         int32_t space_pixels = string_len > 1 ? (string_len - 1) * 1 : 0;
-        rectangle(text_pos_x, text_pos_y,
-                  bitmap_font.max_width * string_len + space_pixels, bitmap_font.height,
+        int32_t bg_max_width_px = bitmap_font.max_width * string_len + space_pixels;
+        int32_t tx = text_pos_x, bx = text_pos_x, ty = text_pos_y, by = text_pos_y;
+        if (justification == 'r') {
+            // Set x positions for right justified text
+            tx = text_pos_x - measure_text(&bitmap_font, text, SCALE, 1, false);
+            bx = text_pos_x - bg_max_width_px;
+        }
+        rectangle(bx, by,
+                  bg_max_width_px, bitmap_font.height,
                   textbg_r, textbg_g, textbg_b);
         bitmap::text(&bitmap_font,
-                     [this](int32_t x, int32_t y, int32_t w, int32_t h) { rectangle(x, y, w, h, text_r, text_g, text_b); },
+                     [this](int32_t x, int32_t y, int32_t w, int32_t h) { rectangle(x, y,
+                                                                                    w, h,
+                                                                                    text_r, text_g, text_b); },
                      text,
-                     text_pos_x,
-                     text_pos_y,
-                     -1, 1.0f, 1, false, 0);
+                     tx, ty,
+                     -1, SCALE, 1, false, 0);
     };
 
   private:
+    constexpr static const uint8_t SCALE = 1;
+
     Display &display;
     const bitmap::font_t &bitmap_font;
     int32_t text_pos_x, text_pos_y;
     uint8_t text_r, text_g, text_b;
+    char justification;
     uint8_t textbg_r, textbg_g, textbg_b;
 };
 
@@ -202,7 +177,7 @@ class EffectClassicTuner : public EffectTuner {
     constexpr static int8_t NOT_SHOWN = -1;
     constexpr static int8_t MID_POS = (Display::WIDTH - 1) / 2;
 
-    TunerText tuner_text;
+    EffectText tuner_text;
     int8_t tuner_cursor_x;  // -1 used for not shown
     float semitone_conv;    // (1 / log(2)) * 12
 
@@ -216,14 +191,18 @@ class EffectAudioscopeTuner : public EffectTuner {
   public:
     EffectAudioscopeTuner(Display& display,
                           Tuner& tuner) : EffectTuner(display, "Audioscope", tuner),
-                                          freq_text(display, font6, 64, 64, 64) { };
+                                          freq_text(display, font6,
+                                                    64, 64, 64, 
+                                                    Display::WIDTH, 
+                                                    Display::HEIGHT - font6.height,
+                                                    'r') { };
     virtual ~EffectAudioscopeTuner() { };
 
   protected:
     constexpr static int8_t Y_MID_POS = (Display::HEIGHT - 1) / 2;
     constexpr static float  y_scale   = float(Display::HEIGHT) / (1 - 2 * INT16_MIN);
 
-    TunerText freq_text;
+    EffectText freq_text;
 
     void updateDisplay(void) override;
     void start(void) override;

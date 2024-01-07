@@ -25,13 +25,13 @@ void EffectAudioscopeTuner::updateDisplay(void) {
     int32_t waveform_idx = 0;
     if (frequency != 0.0f) {
         // TODO consder a fixed 5 char of text at 5x5 + 4*5 position
-        freq_text.text(std::to_string(int32_t(roundf(tuner.frequency))));
+        if (frequency < 99999.49f) {
+            freq_text.text(std::to_string(int32_t(roundf(tuner.frequency))),
+                           5);
+        }
         int32_t zc_idx = findCross(signal);
         if (zc_idx >= 0) {
             waveform_idx = zc_idx;
-        }
-        if (zc_idx < 0) {
-            printf("no trigger\n");
         }
     }
 

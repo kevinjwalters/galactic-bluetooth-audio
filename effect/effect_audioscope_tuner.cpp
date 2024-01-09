@@ -49,6 +49,9 @@ void EffectAudioscopeTuner::updateDisplay(void) {
 
 void EffectAudioscopeTuner::start(void) {
     display.clear();    
+
+    // default step is 1, other effects may have changed it
+    tuner.setStep(4);
 }
 
 void EffectAudioscopeTuner::init(void) {

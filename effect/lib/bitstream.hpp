@@ -68,14 +68,14 @@ struct Bitstream
     }
  
     template <typename F>
-    void auto_correlate(size_t start_pos, F f)
+    void auto_correlate(size_t start_pos, size_t endex_pos, F func, size_t step = 1)
     {
-        auto mid_array = (array_size / 2) - 1;
-        auto mid_pos = size / 2;
+        // TODO - is -1 below perfectly correct given for loops
+        auto mid_array = (array_size / 2) - 1;  
         auto index = start_pos / nbits;
         auto shift = start_pos % nbits;
   
-        for (auto pos = start_pos; pos != mid_pos; ++pos)
+        for (auto pos = start_pos; pos < endex_pos; pos += step)
         {
             auto* p1 = bits.data();
             auto* p2 = bits.data() + index;
@@ -96,14 +96,13 @@ struct Bitstream
                     count += count_the_bits(*p1++ ^ v);
                 }
             }
-            ++shift;
-            if (shift == nbits)
-            {
-                shift = 0;
+            shift += step;
+            while (shift >= nbits) {
+                shift -= nbits;
                 ++index;
             }
    
-            f(pos, count);
+            func(pos, count);
         }
     }
  

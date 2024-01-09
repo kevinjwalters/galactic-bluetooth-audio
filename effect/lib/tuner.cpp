@@ -8,7 +8,9 @@
  */
 
 
+#include <cstddef>
 #include <cstdint>
+#include "limits.h"
 
 #include "tuner.hpp"
 #include "uad/debug.hpp"
@@ -81,6 +83,28 @@ bool Tuner::add_samples(int16_t *buffer, size_t count, uint16_t channels) {
     return end_exidx == sample_array.size();
 }
 
+
+// get the correlation value from corr and if note present
+// then recalculate
+uint32_t Tuner::getCorrelation(std::vector<uint32_t> &corr,
+                               uint32_t &max_count, uint32_t &min_count, size_t *est_index_ptr,
+                               size_t lag_pos) {
+    if (corr[lag_pos] == NOT_CALCULATED) {
+        bitstream.auto_correlate(lag_pos, lag_pos + 1,
+                                 [&corr, &max_count, &min_count, &est_index_ptr](auto lag, auto count) {
+                                     corr[lag] = count;
+                                     max_count = std::max<uint32_t>(max_count, count);
+                                     if (count < min_count) {
+                                         min_count = count;
+                                         if (est_index_ptr != nullptr) { *est_index_ptr = lag; };
+                                     }
+                                 },
+                                 1);
+    }
+    return corr[lag_pos];
+}
+
+
 void Tuner::process() {
     // Set the zero-crossing points in the Bitstream
     ZeroCross zc(zc_noise_magn);
@@ -91,27 +115,39 @@ void Tuner::process() {
     uint32_t max_count = 0;
     uint32_t min_count = UINT32_MAX;
     size_t est_index = 0;
-    // std::array<uint32_t,SAMPLE_COUNT_TUNER / 2> corr{};  // note {} here initializes as 0s
-    std::vector<uint32_t> corr(SAMPLE_COUNT_TUNER / 2, 0);
+    std::vector<uint32_t> corr(SAMPLE_COUNT_TUNER / 2, NOT_CALCULATED);
   
-    bitstream.auto_correlate(size_t(min_period),
-        [&corr, &max_count, &min_count, &est_index](auto pos, auto count)
-        {
-            corr[pos] = count;
-            max_count = std::max<uint32_t>(max_count, count);
-            if (count < min_count)
-            {
-                min_count = count;
-                est_index = pos;
-            }
+    bitstream.auto_correlate(size_t(min_period), corr.size(),
+                             [&corr, &max_count, &min_count, &est_index](auto lag, auto count) {
+                                 corr[lag] = count;
+                                 max_count = std::max<uint32_t>(max_count, count);
+                                 if (count < min_count) {
+                                     min_count = count;
+                                     est_index = lag;
+                                 }
+                             },
+                             step);
+
+    // Refine est_index if step > 1
+    size_t imprecise_index = est_index;
+    for (int32_t offset = 1; offset < step; offset++) {
+        if (imprecise_index - offset >= 0 && corr[imprecise_index - offset] == NOT_CALCULATED) {
+            (void) getCorrelation(corr, 
+                                  max_count, min_count, &est_index,
+                                  imprecise_index - offset);
         }
-    ); 
+        if (imprecise_index + offset < corr.size() && corr[imprecise_index + offset] == NOT_CALCULATED) {
+            (void) getCorrelation(corr, 
+                                  max_count, min_count, &est_index,
+                                  imprecise_index + offset);
+        }
+    }
 
     size_t est_int_period = est_index; 
-    float third_est_freq = 0.0f;
     int max_div = int(est_index / min_period);
+    float third_est_freq = 0.0f;
     uint32_t sub_threshold = uint32_t(COUNT_CORR_SUB_THR_FRAC * max_count);
-    
+
     // Look for lack of strong correlation
     if (min_count > COUNT_CORR_THR_MIN || max_count < COUNT_CORR_THR_MAX) {
         frequency = 0.0f;
@@ -125,7 +161,10 @@ void Tuner::process() {
 
         for (int k = 1; k != div; k++) {
             size_t sub_period = (size_t)roundf(k * est_int_period * mul);
-            if (corr[sub_period] > sub_threshold) {
+            uint32_t correlation = getCorrelation(corr, 
+                                                  max_count, min_count, nullptr,
+                                                  sub_period);
+            if (correlation > sub_threshold) {
                 all_strong = false;
                 break;
             }
@@ -148,6 +187,18 @@ void Tuner::process() {
         float second_est_freq = est_int_period != 0 ? sample_rate_f / float(est_int_period) : 0.0f;
         printf("DEBUG: estimates 1st: %f  2nd: %f  3rd: %f  4th: %f\n",
                first_est_freq, second_est_freq, third_est_freq, frequency);
+    }
+    if (debug >= 3) {
+        uint32_t corr_calc = 0 , corr_noncalc = 0;
+        for (const auto &elem : corr) {
+            if (elem == NOT_CALCULATED) {
+                ++corr_noncalc;
+            } else {
+                ++corr_calc;
+            }
+        }
+        printf("DEBUG: correlation calcs %u (%u) est imp=%u pre=%u\n",
+               corr_calc, corr_noncalc, imprecise_index, est_index);
     }
 
     sample_idx = 0;  // reset index as data has been processed
@@ -238,5 +289,9 @@ int32_t Tuner::findCross(bool pos_edge, size_t sample_mass) {
 
     // -1 if nothing was found or backtrack to start of zero cross if possible
     return (matching_edge > 0) ? (idx >= matching_edge ? idx - matching_edge: 0) : -1;
+}
+
+void Tuner::setStep(size_t step_) {
+    step = step_;
 }
 

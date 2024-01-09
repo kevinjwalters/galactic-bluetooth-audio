@@ -73,6 +73,9 @@ void EffectClassicTuner::start(void) {
                       0, 64u, 0u);
     display.set_pixel(26, Display::HEIGHT - 1,
                       0, 64u, 0u);
+
+    // default step is 1, other effects may have changed it
+    tuner.setStep(2);
 }
 
 void EffectClassicTuner::init(void) {

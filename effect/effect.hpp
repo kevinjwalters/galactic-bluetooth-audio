@@ -8,11 +8,12 @@
 
 #pragma once
 
-#include <functional>
+#include <array>
 #include <cmath>
-#include <string>
 #include <cstdint>
 #include <cstddef>
+#include <functional>
+#include <string>
 #include "limits.h"
 
 
@@ -195,18 +196,29 @@ class EffectAudioscopeTuner : public EffectTuner {
                                                     64, 64, 64, 
                                                     Display::WIDTH, 
                                                     Display::HEIGHT - font6.height,
-                                                    'r') { };
+                                                    'r'),
+                                          // traces initialised in start()
+                                          trace_intensity({8, 20, 51, 128}),
+                                          trace_idx(0) { };
     virtual ~EffectAudioscopeTuner() { };
 
   protected:
-    constexpr static int8_t Y_MID_POS = (Display::HEIGHT - 1) / 2;
-    constexpr static float  y_scale   = float(Display::HEIGHT) / (1 - 2 * INT16_MIN);
-
-    EffectText freq_text;
-
     void updateDisplay(void) override;
     void start(void) override;
     void init(void) override;
+
+  private:
+    constexpr static int8_t Y_MID_POS = (Display::HEIGHT - 1) / 2;
+    constexpr static float  y_scale   = float(Display::HEIGHT) / (1 - 2 * INT16_MIN);
+    constexpr static int8_t OFF_SCREEN = INT8_MIN;
+    constexpr static size_t TRACE_NUM = 4;
+
+    EffectText freq_text;
+    std::array<std::array<int8_t, Display::WIDTH>, TRACE_NUM> traces;
+    std::array<uint8_t, TRACE_NUM> trace_intensity;
+    size_t trace_idx;  // indicates oldest trace
+  
+    void drawTraces(void);
 };
 
 

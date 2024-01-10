@@ -95,16 +95,33 @@ void EffectAudioscopeTuner::updateDisplay(void) {
         }
     }
 
-    // TODO add multiple fading passes
+    auto &new_trace = traces[trace_idx];
     for (uint8_t x=0; x < Display::WIDTH; x++) {
         int32_t value = window(signal, 5, waveform_idx);  // returns 0 beyond end of buffer
         int32_t y = Y_MID_POS - int32_t(roundf(value * y_scale));
-        waveform_idx += 10;
-        if (y >=0 && y < Display::HEIGHT) {
-            display.set_pixel(x, y,
-                              0u, 128u, 0u);
+        new_trace[x] = (y >=0 && y < Display::HEIGHT) ? y : OFF_SCREEN;
+        waveform_idx += 1000 / Display::WIDTH;  // TODO tune this based on sample rate
+    }
+    trace_idx = (trace_idx + 1) % traces.size();
+    drawTraces();
+}
+
+void EffectAudioscopeTuner::drawTraces(void) {
+    size_t t_idx = trace_idx;
+    uint8_t intensity_idx = 0;
+    for (size_t idx=0; idx < traces.size(); idx++) {
+        const auto &trace = traces[t_idx++];
+        for (uint8_t x=0; x < Display::WIDTH; x++) {
+            int32_t y = trace[x];
+            if (y >=0 && y < Display::HEIGHT) {
+                display.set_pixel(x, y,
+                                  0u, trace_intensity[idx], 0u);
+            }
         }
-    }             
+        if (t_idx >= traces.size()) {
+            t_idx = 0;  // wrap back to the start
+        }
+    }
 }
 
 void EffectAudioscopeTuner::start(void) {
@@ -112,6 +129,14 @@ void EffectAudioscopeTuner::start(void) {
 
     // default step is 1, other effects may have changed it
     tuner.setStep(4);
+
+    // For visual effect, initialise it falling towards 0 scope pos
+    int8_t start_row = Y_MID_POS - ((Y_MID_POS + 1) / 2);
+    for (auto &trace : traces) {
+        for (auto &tx : trace) {
+            tx = start_row;
+        }
+    }
 }
 
 void EffectAudioscopeTuner::init(void) {

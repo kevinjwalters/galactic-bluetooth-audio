@@ -107,6 +107,7 @@ class EffectText {
                int32_t text_pos_x = 0,
                int32_t text_pos_y = 0 ,
                char justification = 'l',
+               bool background = true,
                uint8_t textbg_r = 0,
                uint8_t textbg_g = 0,
                uint8_t textbg_b = 0) :
@@ -118,6 +119,7 @@ class EffectText {
         text_g(text_g),
         text_b(text_b),
         justification(justification),
+        background(background),
         textbg_r(textbg_r),
         textbg_g(textbg_g),
         textbg_b(textbg_b) { };
@@ -134,22 +136,24 @@ class EffectText {
         // PicoGraphics_PenRGB888::text(msg, text_origin, -1, 1.0f);
         size_t string_len = fixed_len > 0 ? fixed_len : text.length();
         int32_t space_pixels = string_len > 1 ? (string_len - 1) * 1 : 0;
-        int32_t bg_max_width_px = bitmap_font.max_width * string_len + space_pixels;
-        int32_t tx = text_pos_x, bx = text_pos_x, ty = text_pos_y, by = text_pos_y;
+        int32_t tx = text_pos_x, y = text_pos_y;
         if (justification == 'r') {
-            // Set x positions for right justified text
+            // Set x position for right justified text
             tx = text_pos_x - measure_text(&bitmap_font, text, SCALE, 1, false);
-            bx = text_pos_x - bg_max_width_px;
         }
-        rectangle(bx, by,
-                  bg_max_width_px, bitmap_font.height,
-                  textbg_r, textbg_g, textbg_b);
+        if (background) {
+            int32_t bg_max_width_px = bitmap_font.max_width * string_len + space_pixels;
+            int32_t bx = (justification == 'r') ? text_pos_x - bg_max_width_px : text_pos_x;
+            rectangle(bx, y,
+                      bg_max_width_px, bitmap_font.height,
+                      textbg_r, textbg_g, textbg_b);
+        }
         bitmap::text(&bitmap_font,
                      [this](int32_t x, int32_t y, int32_t w, int32_t h) { rectangle(x, y,
                                                                                     w, h,
                                                                                     text_r, text_g, text_b); },
                      text,
-                     tx, ty,
+                     tx, y,
                      -1, SCALE, 1, false, 0);
     };
 
@@ -161,6 +165,7 @@ class EffectText {
     int32_t text_pos_x, text_pos_y;
     uint8_t text_r, text_g, text_b;
     char justification;
+    bool background;
     uint8_t textbg_r, textbg_g, textbg_b;
 };
 
@@ -196,7 +201,7 @@ class EffectAudioscopeTuner : public EffectTuner {
                                                     64, 64, 64, 
                                                     Display::WIDTH, 
                                                     Display::HEIGHT - font6.height,
-                                                    'r'),
+                                                    'r', false),
                                           // traces initialised in start()
                                           trace_intensity({8, 20, 51, 128}),
                                           trace_idx(0) { };

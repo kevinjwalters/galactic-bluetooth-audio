@@ -84,11 +84,6 @@ void EffectAudioscopeTuner::updateDisplay(void) {
     display.clear();    
     int32_t waveform_idx = 0;
     if (frequency != 0.0f) {
-        // TODO consder a fixed 5 char of text at 5x5 + 4*5 position
-        if (frequency < 99'999.49f) {
-            freq_text.text(std::to_string(int32_t(roundf(tuner.frequency))),
-                           5);
-        }
         int32_t zc_idx = tuner.findCross();
         if (zc_idx >= 0) {
             waveform_idx = zc_idx;
@@ -104,6 +99,13 @@ void EffectAudioscopeTuner::updateDisplay(void) {
     }
     trace_idx = (trace_idx + 1) % traces.size();
     drawTraces();
+
+    // Draw frequency counter value over scope traces
+    // TODO consder a fixed 5 char of text at 5x5 + 4*5 position
+    if (frequency > 0.0f && frequency < 99'999.49f) {
+        freq_text.text(std::to_string(int32_t(roundf(tuner.frequency))),
+                       5);
+    }
 }
 
 void EffectAudioscopeTuner::drawTraces(void) {
